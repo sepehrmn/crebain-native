@@ -1,0 +1,76 @@
+[package]
+name = "crebain-core"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "crebain_core"
+crate-type = ["lib"]
+
+[features]
+default = ["zenoh-transport"]
+cuda = ["ort/cuda"]
+tensorrt = ["ort/tensorrt"]
+zenoh-transport = ["zenoh"]
+cargo-clippy = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(cargo_clippy)'] }
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+nalgebra = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+image = { workspace = true }
+base64 = { workspace = true }
+tokio = { workspace = true }
+lazy_static = { workspace = true }
+
+# ONNX Runtime
+ort = "2.0.0-rc.10"
+
+# Zenoh (optional)
+zenoh = { version = "1.7", features = ["default"], optional = true }
+
+# CDR for ROS2 message serialization
+cdr = "0.2"
+byteorder = "1.5"
+
+# Dynamic library loading for Zig detector
+libloading = "0.8"
+
+# macOS-specific dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+core-graphics = "0.24"
+core-foundation = "0.10"
+candle-core = { version = "0.9", features = ["metal"] }
+candle-nn = "0.9"
+safetensors = "0.6"
+half = "2.6"
+shellexpand = "3.1"
+
+# Linux-specific dependencies
+[target.'cfg(target_os = "linux")'.dependencies]
+ort = { version = "2.0.0-rc.10", features = ["cuda", "load-dynamic"] }
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+incremental = false
+strip = "symbols"
+
+[profile.dev]
+opt-level = 1
+debug = 1

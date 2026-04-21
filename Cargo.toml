@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/crebain-core",
+    "crates/crebain-app",
+]
+
+[workspace.package]
+version = "0.4.0"
+description = "CREBAIN - Adaptive Response & Awareness System (ARAS)"
+authors = ["CREBAIN Contributors"]
+license = "MIT"
+repository = "https://github.com/crebain/crebain"
+edition = "2021"
+rust-version = "1.81.0"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+nalgebra = "0.33"
+rand = "0.9"
+rand_distr = "0.5"
+image = "0.25"
+base64 = "0.22"
+tokio = { version = "1.48", features = ["rt-multi-thread", "sync", "time"] }
+lazy_static = "1.5"

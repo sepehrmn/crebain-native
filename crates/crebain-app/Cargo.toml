@@ -1,0 +1,25 @@
+[package]
+name = "crebain-app"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+crebain-core = { path = "../crebain-core" }
+bevy = "0.15"
+bevy_egui = "0.32"
+serde = { workspace = true }
+log = { workspace = true }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.dev]
+opt-level = 1
+debug = 1
