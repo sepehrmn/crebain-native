@@ -1,5 +1,9 @@
 # CREBAIN
 
+<p align="center">
+  <img src="assets/crebain-logo.png" alt="CREBAIN Logo" width="120" />
+</p>
+
 **Adaptive Response & Awareness System (ARAS)**
 
 *DE: Adaptives Reaktions- und Aufklärungssystem (ARAS)*
@@ -210,7 +214,7 @@ pub fn create_detector() -> Box<dyn Detector> {
 
 **Problem**: Gazebo's GUI competes for GPU resources and doesn't integrate with custom UIs.
 
-**Solution**: Run Gazebo headless; render everything in SparkJS/Three.js.
+**Solution**: Run Gazebo headless; render everything in the native Bevy application.
 
 ```mermaid
 flowchart TB
@@ -221,22 +225,22 @@ flowchart TB
         G4["✅ Camera Image Rendering"]
     end
 
-    subgraph ThreeJS["Three.js / SparkJS"]
-        T1["✅ 3D Tactical Map"]
-        T2["✅ Drone Position Icons"]
-        T3["✅ Trajectory Visualization"]
-        T4["✅ Detection Overlays"]
-        T5["✅ Threat Indicators"]
-        T6["✅ User Interaction"]
+    subgraph Bevy["Bevy (Native Rust)"]
+        B1["✅ 3D Tactical Map"]
+        B2["✅ Drone Position Icons"]
+        B3["✅ Trajectory Visualization"]
+        B4["✅ Detection Overlays"]
+        B5["✅ Threat Indicators"]
+        B6["✅ User Interaction"]
     end
 
-    G4 -->|"Stream to Frontend"| T4
-    G2 -->|"Position Data"| T2
-    G3 -->|"Sensor Data"| T5
+    G4 -->|"Zenoh Stream"| B4
+    G2 -->|"Position Data"| B2
+    G3 -->|"Sensor Data"| B5
 ```
 
 **Gazebo**: GPU not wasted on 3D viewport - focused on physics and sensors  
-**Three.js**: Full control over UX with 60fps interactive UI
+**Bevy**: Full control over UX with native performance at 60fps
 
 ### 4. Sim2Real Awareness
 
@@ -341,32 +345,23 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 
 1. **Launch the app**: `cargo run --release`
 2. **Enable detection**: Detection runs automatically on camera feeds
-5. **View performance**: Press P to toggle the performance panel
-6. **Sensor fusion**: Press F to toggle the sensor fusion panel
-7. **Connect ROS**: Press G to open the ROS connection panel
+3. **View performance**: Toggle the Performance panel in the status bar
+4. **Sensor fusion**: Toggle the Sensor Fusion panel in the status bar
+5. **Connect ROS**: Toggle the ROS Connection panel in the status bar
 
 ---
 
 ## Keyboard Controls
 
-### Navigation
+### Navigation & Camera
 | Key | Action |
 |-----|--------|
 | W/A/S/D | Move forward/left/back/right |
-| Q/E | Move down/up |
+| Q/Space | Move up |
+| E | Move down |
 | Shift | Sprint (3x speed) |
 | Ctrl | Precision mode (0.2x speed) |
-| Space | Emergency stop |
-| R | Reset camera to origin |
-
-### Camera System
-| Key | Action |
-|-----|--------|
-| 1 | Place Static Camera (SK) |
-| 2 | Place PTZ Camera |
-| 3 | Place Patrol Camera (PK) |
-| Tab | Cycle through cameras |
-| C | Toggle camera feeds |
+| Mouse Wheel | Zoom in/out |
 
 ### Panels & UI
 | Key | Action |
@@ -374,7 +369,6 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 | P | Toggle Performance Panel |
 | F | Toggle Sensor Fusion Panel |
 | G | Toggle ROS Connection Panel |
-| T | Toggle detection on/off |
 
 ---
 
@@ -388,17 +382,15 @@ crates/crebain-app/src/
 ├── app_state/             # CrebainConfig, AppState, RenderQuality
 ├── camera/                # Tactical camera (WASD+QE controls, zoom)
 ├── detection/             # DetectionPlugin, DetectionState, detection loop
-├── scene/                 # Scene save/load via crebain-core
 ├── transport/             # TransportPlugin bridging Zenoh → Bevy events
 ├── ui/
 │   ├── hud/               # Status bar, performance panel, sensor fusion panel
 │   └── top_menu/          # Menu bar (File/View/Detection/Help)
-├── viewer/
-│   ├── grid.rs            # Tactical grid + origin axes
-│   ├── terrain.rs         # Ground plane
-│   ├── drone.rs            # Drone visualizer with threat colors
-│   └── detection_overlay.rs # 3D detection boxes
-└── circular_buffer.rs     # O(1) position history
+└── viewer/
+    ├── grid.rs            # Tactical grid + origin axes
+    ├── terrain.rs          # Ground plane
+    ├── drone.rs           # Drone visualizer with threat colors
+    └── detection_overlay.rs # 3D detection boxes
 ```
 
 ### Core Architecture
@@ -457,16 +449,15 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    CameraFeed["Camera Feed<br/>(Three.js)"]
+    CameraFeed["Camera Feed<br/>(Bevy 3D Scene)"]
     
     subgraph Capture["Frame Capture"]
-        WebGL["WebGL RenderTarget"]
-        ReadPixels["readPixels()"]
-        RGBA["RGBA Buffer"]
-        WebGL --> ReadPixels --> RGBA
+        BevyRT["Bevy Render Target"]
+        ReadPixels["RGBA Buffer"]
+        BevyRT --> ReadPixels
     end
     
-    subgraph Backend["Rust Backend: create_detector()"]
+    subgraph Backend["Rust Backend: detect_native()"]
         subgraph Backends["Platform Backends"]
             macOS["macOS<br/>CoreML/MLX<br/>~8-12ms"]
             Linux["Linux<br/>TensorRT/CUDA<br/>~3-5ms"]
@@ -479,15 +470,15 @@ flowchart TB
         Backends --> Preprocess --> Inference --> Postprocess
     end
     
-    subgraph Overlay["Detection Overlay (Canvas 2D)"]
-        BBox["Bounding Boxes"]
+    subgraph Overlay["Detection Overlay (Bevy 3D)"]
+        BBox["3D Bounding Boxes"]
         Threat["Threat Level Coloring"]
         TrackID["Track IDs"]
     end
     
     CameraFeed --> Capture
-    Capture -->|"Tauri IPC (invoke)"| Backend
-    Backend -->|"JSON Detections"| Overlay
+    Capture -->|"Native Rust Call"| Backend
+    Backend -->|"Detection Objects"| Overlay
 ```
 
 ### Performance by Platform
@@ -609,7 +600,6 @@ cd crebain && cargo run --release
 |----------|-------------|--------|
 | `CREBAIN_MODEL_PATH` | ML model path | Path to `.mlmodelc` or `.onnx` |
 | `CREBAIN_ONNX_MODEL` | ONNX model path (override) | Path to `.onnx` |
-| `CREBAIN_DETECTOR_LIB` | Zig detector library path | Path to `libcrebain_detector.*` |
 | `CREBAIN_BACKEND` | Force ML backend | `coreml`, `mlx`, `tensorrt`, `cuda`, `onnx` |
 | `CREBAIN_TRT_CACHE_DIR` | TensorRT engine cache dir | Directory path (Linux) |
 | `CREBAIN_DISABLE_TRT_CACHE` | Disable TensorRT caching | `1` / `true` |
@@ -625,13 +615,14 @@ cd crebain && cargo run --release
 
 | Optimization | Location | Impact |
 |--------------|----------|--------|
-| CircularBuffer for position history | `useGazeboDrones.ts` | O(n) → O(1) |
-| Memoized derived state | `useGazeboDrones.ts` | No recompute on every render |
-| Squared distance comparisons | `InterceptionSystem.ts` | Avoids sqrt() |
-| Selective trajectory prediction | `useGazeboSimulation.ts` | 80% reduction |
-| 20Hz continuous guidance | `GuidanceController.ts` | Smooth control |
-| Stable config refs | Various hooks | Avoids effect re-runs |
-| ImageBitmap decoding | `ROSCameraStream.ts` | GPU-accelerated |
+| CircularBuffer for position history | `drone.rs` | O(1) push/pop trail points |
+| Squared distance comparisons | `camera/mod.rs` | Avoids sqrt() |
+| Change detection gates | `detection/mod.rs`, `drone.rs` | Skip unchanged resources |
+| Shared detection assets | `detection_overlay.rs` | 1 mesh + 5 materials cached |
+| Detection position update | `detection_overlay.rs` | Move existing entities vs respawn |
+| Stable detection IDs | `detection/mod.rs` | Consistent entity mapping |
+| CDR little-endian encoding | `zenoh.rs` | Correct ROS2 wire format |
+| Thread-safe CoreML FFI | `coreml.rs` | Lock-free OnceLock + AtomicU64 |
 
 ### Benchmarks (M3 Pro)
 
@@ -664,15 +655,6 @@ cd crebain && cargo run --release
 | Measurement Noise | 2.0 | Sensor uncertainty |
 | Association Threshold | 10.0m | Track matching distance |
 
-### Guidance Controller Settings
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Rate | 20Hz | Control loop frequency |
-| Max Velocity | 15 m/s | Speed limit |
-| kP | 1.5 | Proportional gain |
-| kD | 0.5 | Derivative gain |
-
 ---
 
 ## Project Structure
@@ -692,12 +674,10 @@ crebain/
 │           ├── camera/            # Tactical camera controls
 │           ├── viewer/            # 3D scene (grid, terrain, drones)
 │           ├── transport/         # Bevy-Zenoh event bridge
-│           ├── ui/                # egui panels & menu
-│           └── scene/             # Scene save/load
+│           └── ui/                # egui panels & menu
 │
 ├── native/                        # Native modules
-│   ├── coreml-ffi/               # Swift CoreML bridge
-│   └── zig-detector/             # Zig detector
+│   └── coreml-ffi/               # Swift/CoreML bridge (macOS)
 │
 ├── ros/                           # ROS reference files
 │   ├── msg/                       # Message definitions
@@ -751,12 +731,12 @@ crebain/
 
 ### Code Quality Requirements
 
-- TypeScript strict mode
-- Rust clippy clean
-- No console.log in production
-- Memoize expensive computations
-- Use CircularBuffer for high-frequency data
-- Prefer squared distance for comparisons
+- Rust clippy clean (`cargo clippy --workspace`)
+- Use `log::info/warn/error` instead of `println!`
+- No debug prints in production
+- Use Bevy change detection (`is_changed()`) to avoid redundant work
+- Use `CircularBuffer` for high-frequency data
+- Prefer squared distance comparisons over `sqrt()`
 
 ---
 

@@ -21,6 +21,7 @@ impl Plugin for TransportPlugin {
 }
 
 #[derive(Resource, Default)]
+#[allow(dead_code)]
 pub struct TransportState {
     pub connected: bool,
     pub subscriptions: Vec<String>,

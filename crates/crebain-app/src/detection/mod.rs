@@ -208,7 +208,7 @@ fn handle_detection_image_events(
     mut buffer: ResMut<DetectionImageBuffer>,
 ) {
     for event in events.read() {
-        buffer.data = Some(std::mem::take(&mut event.data.clone()));
+        buffer.data = Some(event.data.clone());
         buffer.width = event.width;
         buffer.height = event.height;
     }

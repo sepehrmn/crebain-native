@@ -34,7 +34,6 @@ cargo build --release --workspace # Release build
 - Validate all external inputs (paths, user data)
 - Use `spawn_blocking` for CPU-intensive operations in async contexts
 - Use functional components with Bevy ECS (systems, resources, events)
-- Prefer `useCallback` patterns: avoid recreating closures each frame
 - Use `ResMut` only when mutation is needed; prefer `Res` for read-only
 - Derive `Resource` for app state, `Component` for entity data
 
@@ -50,7 +49,6 @@ cargo build --release --workspace # Release build
 - `app_state/` - CrebainConfig, AppState, RenderQuality
 - `camera/` - Tactical camera (WASD+QE controls, zoom)
 - `detection/` - DetectionPlugin, DetectionState, detection loop
-- `scene/` - Scene save/load via crebain-core
 - `transport/` - TransportPlugin bridging Zenoh → Bevy events
 - `ui/hud/` - Status bar, performance panel, sensor fusion panel
 - `ui/top_menu/` - Menu bar (File/View/Detection/Help)
@@ -58,7 +56,6 @@ cargo build --release --workspace # Release build
 
 ### Native (`native/`)
 - `coreml-ffi/` - Swift/CoreML FFI bridge (macOS)
-- `zig-detector/` - Zig-based native detector (Linux)
 
 ## Performance Guidelines
 

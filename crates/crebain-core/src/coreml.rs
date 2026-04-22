@@ -552,6 +552,7 @@ pub fn init_detector(model_path: &str) -> Result<(), String> {
 }
 
 /// Run detection on base64-encoded image (convenience function)
+#[allow(dead_code)]
 pub fn detect_base64(
     image_base64: &str,
     confidence_threshold: f64,

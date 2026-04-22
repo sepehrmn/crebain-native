@@ -37,6 +37,7 @@ pub enum RenderQuality {
 }
 
 impl RenderQuality {
+    #[allow(dead_code)]
     pub fn msaa_samples(&self) -> u32 {
         match self {
             RenderQuality::Low => 1,
@@ -46,6 +47,7 @@ impl RenderQuality {
         }
     }
 
+    #[allow(dead_code)]
     pub fn shadow_resolution(&self) -> u32 {
         match self {
             RenderQuality::Low => 512,
@@ -57,6 +59,7 @@ impl RenderQuality {
 }
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
+#[allow(dead_code)]
 pub enum AppState {
     #[default]
     Loading,

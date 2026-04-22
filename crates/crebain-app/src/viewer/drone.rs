@@ -9,6 +9,7 @@ pub struct DroneRegistry {
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct DroneState {
     pub id: String,
     pub name: String,
@@ -22,6 +23,7 @@ pub struct DroneState {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum DroneType {
     Friendly,
     Hostile,
@@ -29,6 +31,7 @@ pub enum DroneType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum DroneFlightMode {
     Manual,
     Stabilized,
@@ -56,6 +59,7 @@ impl DroneType {
 }
 
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct DroneVisual {
     pub drone_id: String,
     pub drone_type: DroneType,

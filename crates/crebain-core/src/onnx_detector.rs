@@ -456,6 +456,7 @@ impl OnnxDetector {
     }
 
     /// Get backend name
+    #[allow(dead_code)]
     pub fn get_backend_name(&self) -> &str {
         &self.backend_name
     }
@@ -574,6 +575,7 @@ pub fn is_onnx_detector_ready() -> bool {
 }
 
 /// Get info about the ONNX detector
+#[allow(dead_code)]
 pub fn get_onnx_detector_info() -> serde_json::Value {
     #[cfg(target_os = "linux")]
     let providers = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

@@ -7,6 +7,7 @@ pub struct DetectionStateVisual {
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct Detection3D {
     pub id: String,
     pub class_label: String,
@@ -77,29 +78,26 @@ pub fn update_detection_overlays(
 
     let current_ids: HashSet<&String> = detection_state.detections.iter().map(|d| &d.id).collect();
 
-    // Despawn removed detections and update existing ones
+    let mut existing_ids = HashSet::new();
     for (entity, detection_box) in existing_query.iter() {
-        if !current_ids.contains(&detection_box.detection_id) {
+        if current_ids.contains(&detection_box.detection_id) {
+            existing_ids.insert(detection_box.detection_id.clone());
+            if let Some(det) = detection_state.detections.iter().find(|d| d.id == detection_box.detection_id) {
+                if let Ok(mut transform) = transform_query.get_mut(entity) {
+                    transform.translation = det.position;
+                }
+                if detection_box.threat_level != det.threat_level {
+                    commands.entity(entity).insert(MeshMaterial3d(assets.materials[det.threat_level as usize].clone()));
+                    commands.entity(entity).insert(DetectionBox {
+                        detection_id: det.id.clone(),
+                        threat_level: det.threat_level,
+                    });
+                }
+            }
+        } else {
             commands.entity(entity).despawn();
-        } else if let Some(det) = detection_state.detections.iter().find(|d| d.id == detection_box.detection_id) {
-            if let Ok(mut transform) = transform_query.get_mut(entity) {
-                transform.translation = det.position;
-            }
-            if detection_box.threat_level != det.threat_level {
-                commands.entity(entity).insert(MeshMaterial3d(assets.materials[det.threat_level as usize].clone()));
-                commands.entity(entity).insert(DetectionBox {
-                    detection_id: det.id.clone(),
-                    threat_level: det.threat_level,
-                });
-            }
         }
     }
-
-    // Spawn new detections
-    let existing_ids: HashSet<String> = existing_query
-        .iter()
-        .map(|(_, db)| db.detection_id.clone())
-        .collect();
 
     for det in &detection_state.detections {
         if !existing_ids.contains(&det.id) {

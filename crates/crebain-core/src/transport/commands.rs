@@ -14,7 +14,7 @@ pub type TransportEvent = TransportEventType;
 #[serde(tag = "type", content = "data")]
 pub enum TransportEventType {
     CameraFrame { topic: String, frame: CameraFrame },
-    CameraInfo { topic: String, info: CameraInfoData },
+    CameraInfo { topic: String, info: Box<CameraInfoData> },
     ImuData { topic: String, data: ImuData },
     PoseData { topic: String, data: PoseData },
     ModelStates { topic: String, data: ModelStates },
@@ -86,7 +86,7 @@ pub async fn transport_subscribe_camera_info(topic: &str) -> Result<(), String> 
     let callback = Box::new(move |info: CameraInfoData| {
         let _ = sender.send(TransportEventType::CameraInfo {
             topic: event_topic.clone(),
-            info,
+            info: Box::new(info),
         });
     });
 

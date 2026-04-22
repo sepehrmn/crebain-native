@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 #[derive(Event, Clone, Debug)]
+#[allow(dead_code)]
 pub struct CameraFrameEvent {
     pub topic: String,
     pub width: u32,
@@ -11,6 +12,7 @@ pub struct CameraFrameEvent {
 }
 
 #[derive(Event, Clone, Debug)]
+#[allow(dead_code)]
 pub struct ImuDataEvent {
     pub topic: String,
     pub orientation: [f64; 4],
@@ -20,6 +22,7 @@ pub struct ImuDataEvent {
 }
 
 #[derive(Event, Clone, Debug)]
+#[allow(dead_code)]
 pub struct PoseDataEvent {
     pub topic: String,
     pub position: [f64; 3],
@@ -29,6 +32,7 @@ pub struct PoseDataEvent {
 }
 
 #[derive(Event, Clone, Debug)]
+#[allow(dead_code)]
 pub struct ModelStateEvent {
     pub topic: String,
     pub names: Vec<String>,
@@ -44,6 +48,7 @@ pub struct TransportConnectedEvent;
 pub struct TransportDisconnectedEvent;
 
 #[derive(Event, Clone, Debug)]
+#[allow(dead_code)]
 pub struct TransportErrorEvent {
     pub message: String,
 }
