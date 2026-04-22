@@ -9,16 +9,9 @@ resources/*.engine
 resources/*.safetensors
 resources/*.pt
 resources/*.weights
-native/*/zig-out/
-native/*/.build/
-native/*/.zig-cache/
-
-# Zig
-zig-cache/
-zig-out/
-.zig-cache/
 
 # Swift / Xcode (CoreML sidecar)
+native/coreml-ffi/.build/
 .build/
 .swiftpm/
 *.xcodeproj/

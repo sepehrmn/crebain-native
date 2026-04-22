@@ -5,10 +5,6 @@
 *DE: Adaptives Reaktions- und Aufklärungssystem (ARAS)*
 Version 0.4.0 | System Core v4.0.0
 
-<p align="center">
-  <img src="public/crebain-logo.png" alt="CREBAIN Logo" width="120" />
-</p>
-
 A professional-grade tactical reconnaissance platform with 3D visualization, multi-camera surveillance, ML-based drone detection, advanced multi-modal sensor fusion, drone physics simulation, and low-latency ROS-Gazebo integration. Built with Rust, Bevy, and platform-native ML acceleration (CoreML/Metal on macOS, CUDA/TensorRT on Linux).
 
 ---

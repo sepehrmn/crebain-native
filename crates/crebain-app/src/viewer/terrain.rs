@@ -3,16 +3,6 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Terrain;
 
-#[derive(Resource, Clone, Default)]
-pub enum FloorStyle {
-    #[default]
-    Concrete,
-    Grass,
-    Asphalt,
-    Checker,
-    Terrain,
-}
-
 pub fn spawn_terrain(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,

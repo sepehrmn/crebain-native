@@ -105,14 +105,6 @@ pub fn get_class_name(index: usize) -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-/// Get the class name as a static str reference.
-///
-/// Returns None for out-of-range indices.
-#[inline]
-pub fn get_class_name_ref(index: usize) -> Option<&'static str> {
-    COCO_CLASSES.get(index).copied()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,12 +121,5 @@ mod tests {
         assert_eq!(get_class_name(79), "toothbrush");
         assert_eq!(get_class_name(80), "unknown");
         assert_eq!(get_class_name(1000), "unknown");
-    }
-
-    #[test]
-    fn test_get_class_name_ref() {
-        assert_eq!(get_class_name_ref(0), Some("person"));
-        assert_eq!(get_class_name_ref(79), Some("toothbrush"));
-        assert_eq!(get_class_name_ref(80), None);
     }
 }

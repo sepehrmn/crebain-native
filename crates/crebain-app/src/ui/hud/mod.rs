@@ -35,6 +35,12 @@ pub fn panels_system(
                     format!("{:.1}ms", detection_state.last_inference_ms),
                 );
             }
+            if detection_state.fps > 0.0 {
+                ui.label(format!("Pipeline: {:.1} FPS", detection_state.fps));
+            }
+            if let Some(ref err) = detection_state.error {
+                ui.colored_label(egui::Color32::RED, format!("Error: {}", err));
+            }
             ui.separator();
             ui.label(format!("FPS: {:.0}", fps));
             ui.separator();
@@ -51,9 +57,19 @@ pub fn panels_system(
                 ui.heading("Performance");
                 ui.separator();
                 ui.label(format!("Detection: {}", if config.detection_enabled { "ON" } else { "OFF" }));
+                ui.label(format!("Inferences: {}", detection_state.total_inferences));
                 ui.label(format!("Confidence: {:.2}", config.confidence_threshold));
                 ui.label(format!("IOU: {:.2}", config.iou_threshold));
                 ui.label(format!("Max detections: {}", config.max_detections));
+
+                if detection_state.last_inference_ms > 0.0 {
+                    ui.separator();
+                    ui.heading("Timing");
+                    ui.label(format!("Preprocess: {:.2}ms", detection_state.last_preprocess_ms));
+                    ui.label(format!("Inference: {:.2}ms", detection_state.last_inference_ms));
+                    ui.label(format!("Postprocess: {:.2}ms", detection_state.last_postprocess_ms));
+                    ui.label(format!("Pipeline FPS: {:.1}", detection_state.fps));
+                }
 
                 if !detection_state.last_objects.is_empty() {
                     ui.separator();

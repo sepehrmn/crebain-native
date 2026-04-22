@@ -21,18 +21,13 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    zig-overlay = {
-      url = "github:mitchellh/zig-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, zig-overlay }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [
           rust-overlay.overlays.default
-          zig-overlay.overlays.default
         ];
         isLinuxSystem = builtins.match ".*-linux" system != null;
         pkgs = import nixpkgs {
@@ -68,7 +63,6 @@
           cargo
           cargo-watch
           cargo-edit
-          zig-overlay.packages.${system}.master
           pkg-config
           cmake
           gnumake
@@ -165,7 +159,6 @@
             ''}
             echo "╠══════════════════════════════════════════════════════════════════╣"
             echo "║  Rust:   $(rustc --version | cut -d' ' -f2)                                                ║"
-            echo "║  Zig:    $(zig version 2>/dev/null || echo "not found")                                                ║"
             echo "╠══════════════════════════════════════════════════════════════════╣"
             echo "║  Commands:                                                       ║"
             echo "║    cargo run              - Build and run the app                 ║"
@@ -205,7 +198,7 @@
           ORT_SKIP_DOWNLOAD = "1";
           CARGO_FEATURES = "cuda";
           CUDA_PATH = "${pkgs.cudaPackages.cudatoolkit}";
-          TENSORRT_ROOT = "${pkgs.cudaPackages.tensorrt}";
+          TENSORRT_ROOT = "${pkgs.cudaPayments.tensorrt}";
           ORT_DYLIB_PATH = "${onnxruntimeMerged}/lib/libonnxruntime.so";
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (linuxBuildInputs ++ cudaBuildInputs);
 
@@ -257,15 +250,6 @@
           );
           ORT_SKIP_DOWNLOAD = "1";
 
-          preBuild = ''
-            echo "Building Zig detector..."
-            cd native/zig-detector
-            ${zig-overlay.packages.${system}.master}/bin/zig build -Doptimize=ReleaseFast ${
-              if hasCuda then "-Dcuda=true -Dcuda-path=${pkgs.cudaPackages.cudatoolkit} -Donnx=true -Donnx-path=${onnxruntimeMerged}" else ""
-            }
-            cd ../..
-          '';
-
           installPhase = ''
             mkdir -p $out/bin
             cp target/release/crebain-app $out/bin/crebain
@@ -280,9 +264,6 @@
 
             mkdir -p $out/share/crebain/models
             cp -r resources/* $out/share/crebain/models/ 2>/dev/null || true
-
-            mkdir -p $out/lib
-            cp native/zig-detector/zig-out/lib/libcrebain_detector.* $out/lib/ 2>/dev/null || true
           '';
 
           meta = with pkgs.lib; {
@@ -309,33 +290,6 @@
               "CREBAIN_MODEL_PATH=/share/crebain/models/yolov8s.onnx"
             ];
           };
-        };
-
-        packages.zig-detector = pkgs.stdenv.mkDerivation {
-          pname = "crebain-zig-detector";
-          version = "0.1.0";
-
-          src = ./native/zig-detector;
-
-          nativeBuildInputs = [ zig-overlay.packages.${system}.master ];
-
-          buildInputs = if hasCuda then [
-            pkgs.cudaPackages.cudatoolkit
-            pkgs.cudaPackages.cudnn
-            onnxruntimeMerged
-          ] else [];
-
-          buildPhase = ''
-            zig build -Doptimize=ReleaseFast ${
-              if hasCuda then "-Dcuda=true -Donnx=true -Donnx-path=${onnxruntimeMerged}" else ""
-            }
-          '';
-
-          installPhase = ''
-            mkdir -p $out/lib $out/include
-            cp zig-out/lib/* $out/lib/
-            cp src/crebain_detector.h $out/include/
-          '';
         };
       }
     );

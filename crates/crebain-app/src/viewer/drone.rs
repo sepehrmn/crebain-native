@@ -68,10 +68,6 @@ pub struct DroneTrail {
     pub max_points: usize,
 }
 
-pub fn spawn_default_drones() {
-    // DroneRegistry is initialized in ViewerPlugin::build via init_resource
-}
-
 fn create_drone_mesh(
     drone_type: &DroneType,
     meshes: &mut Assets<Mesh>,

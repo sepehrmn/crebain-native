@@ -44,9 +44,6 @@ zenoh = { version = "1.7", features = ["default"], optional = true }
 cdr = "0.2"
 byteorder = "1.5"
 
-# Dynamic library loading for Zig detector
-libloading = "0.8"
-
 # macOS-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"

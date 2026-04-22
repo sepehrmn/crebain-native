@@ -32,16 +32,6 @@ pub fn compute_iou(a: &BBox, b: &BBox) -> f32 {
     }
 }
 
-/// Compute IoU using raw coordinate arrays.
-///
-/// Format: [x1, y1, x2, y2]
-#[inline]
-pub fn compute_iou_array(a: &[f32; 4], b: &[f32; 4]) -> f32 {
-    let bbox_a = BBox::from_array(*a);
-    let bbox_b = BBox::from_array(*b);
-    compute_iou(&bbox_a, &bbox_b)
-}
-
 /// Apply Non-Maximum Suppression to filter overlapping detections.
 ///
 /// # Arguments

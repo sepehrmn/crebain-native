@@ -5,12 +5,9 @@ pub mod transport;
 
 mod coreml;
 mod onnx_detector;
-mod zig_detector;
 
 use sensor_fusion::{FusionConfig, FusionStats, MultiSensorFusion, SensorMeasurement, TrackOutput};
 use std::sync::{Mutex, Once};
-
-pub use common::detection::{BBox, Detection as CoreDetection, DetectionResult as CoreDetectionResult};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NativeDetectionResult {
@@ -104,13 +101,6 @@ pub fn init_platform_detector() {
     }
 
     init_onnx_detector();
-
-    #[cfg(target_os = "linux")]
-    {
-        if let Err(e) = zig_detector::init_global_detector() {
-            log::warn!("Zig detector not available: {}", e);
-        }
-    }
 }
 
 fn init_onnx_detector() {
