@@ -9,7 +9,7 @@ Version 0.4.0 | System Core v4.0.0
   <img src="public/crebain-logo.png" alt="CREBAIN Logo" width="120" />
 </p>
 
-A professional-grade tactical reconnaissance platform with 3D Gaussian Splatting visualization, multi-camera surveillance, ML-based drone detection, advanced multi-modal sensor fusion, drone physics simulation, and low-latency ROS-Gazebo integration. Built with Tauri 2, React 19, SparkJS/Three.js, and platform-native ML acceleration (CoreML/Metal on macOS, CUDA/TensorRT on Linux).
+A professional-grade tactical reconnaissance platform with 3D visualization, multi-camera surveillance, ML-based drone detection, advanced multi-modal sensor fusion, drone physics simulation, and low-latency ROS-Gazebo integration. Built with Rust, Bevy, and platform-native ML acceleration (CoreML/Metal on macOS, CUDA/TensorRT on Linux).
 
 ---
 
@@ -25,8 +25,8 @@ A professional-grade tactical reconnaissance platform with 3D Gaussian Splatting
 - [Usage](#usage)
 - [Keyboard Controls](#keyboard-controls)
 - [System Architecture](#system-architecture)
-  - [Frontend Architecture](#frontend-architecture)
-  - [Backend Architecture](#backend-architecture)
+  - [App Architecture](#app-architecture)
+  - [Core Architecture](#core-architecture)
   - [Communication Layer](#communication-layer)
 - [ML Inference Pipeline](#ml-inference-pipeline)
 - [Sensor Fusion System](#sensor-fusion-system)
@@ -48,18 +48,17 @@ A professional-grade tactical reconnaissance platform with 3D Gaussian Splatting
 
 | Capability | Description | Status |
 |------------|-------------|--------|
-| **3D Visualization** | Gaussian Splatting + GLB/GLTF models via Three.js | In Progress |
+| **3D Visualization** | 3D tactical view with Bevy/egui | In Progress |
 | **Multi-Camera Surveillance** | Up to 4 simultaneous camera feeds with PTZ control | In Progress |
-| **ML Detection** | Real-time object detection with platform-native acceleration | In Progress |
+| **ML Detection** | Real-time object detection with platform-native acceleration | Working |
 | **Sensor Fusion** | 5 filter algorithms (KF/EKF/UKF/PF/IMM) for multi-modal tracking | In Progress |
 | **Drone Physics** | 120Hz quadcopter aerodynamics simulation | In Progress |
 | **ROS Integration** | rosbridge WebSocket + Zenoh low-latency transport | In Progress |
 | **Cross-Platform** | macOS (Apple Silicon) + NixOS (CUDA) | In Progress |
 
 ### 3D Visualization
-- **Gaussian Splatting**: Load and view 3D Gaussian Splat scenes (.spz, .ply, .splat, .ksplat)
-- **GLB/GLTF Support**: Import 3D models for tactical overlays
-- **Real-time Rendering**: Three.js with WebGPU (Metal/Vulkan), fallback to WebGL 2.0
+- **3D Visualization**: Tactical 3D view with Bevy engine + egui UI overlays
+- **Real-time Rendering**: Bevy with wgpu (Metal/Vulkan/WebGPU)
 - **First-Person Navigation**: WASD movement, Q/E for vertical, Shift to sprint
 - **Drone Visualization**: Real-time 3D drone models with rotor animation
 
@@ -110,22 +109,18 @@ A professional-grade tactical reconnaissance platform with 3D Gaussian Splatting
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (React 19 + TypeScript)"]
-        ThreeJS["SparkJS/Three.js<br/>(3D Scene)"]
-        CameraFeeds["Camera Feeds<br/>(Overlays)"]
-        FusionUI["Sensor Fusion UI<br/>(Tracks)"]
-        ROSControls["ROS Controls<br/>(Bridge)"]
+    subgraph App["CREBAIN App (Rust + Bevy)"]
+        Viewer["3D Viewer<br/>(Bevy + wgpu)"]
+        UI["egui Panels<br/>(HUD, Menu, Stats)"]
+        Detection["Detection Loop<br/>(Native ML)"]
+        Fusion["Sensor Fusion<br/>(KF/EKF/UKF/PF/IMM)"]
+        Transport["Zenoh Transport<br/>(Low latency)"]
     end
 
-    subgraph IPC["Tauri IPC"]
-        Invoke["invoke/events"]
-    end
-
-    subgraph Backend["Rust Backend (Tauri)"]
+    subgraph Core["crebain-core (Rust Library)"]
         Inference["Inference<br/>Abstraction Layer"]
         SensorFusion["Sensor Fusion<br/>Engine"]
-        Zenoh["Transport<br/>(Zenoh)"]
-        ROSBridge["ROS Bridge<br/>(WebSocket)"]
+        ZenohCore["Zenoh<br/>Bridge"]
         
         subgraph Platform["Platform Abstraction"]
             macOS["macOS<br/>CoreML / MLX<br/>Metal GPU<br/>Neural Engine"]
@@ -138,20 +133,15 @@ graph TB
         Hardware["Real Hardware<br/>PX4/ArduPilot<br/>Cameras & Sensors"]
     end
 
-    ThreeJS --> Invoke
-    CameraFeeds --> Invoke
-    FusionUI --> Invoke
-    ROSControls --> Invoke
-    
-    Invoke --> Inference
-    Invoke --> SensorFusion
-    Invoke --> Zenoh
-    Invoke --> ROSBridge
+    Viewer --> Detection
+    UI --> Detection
+    Detection --> Core
+    Fusion --> Core
+    Transport --> ZenohCore
     
     Inference --> Platform
     
-    Zenoh --> External
-    ROSBridge --> External
+    ZenohCore --> External
 ```
 
 ---
@@ -284,13 +274,12 @@ nix build     # Build for current platform
 
 | Layer | Technology | Justification |
 |-------|------------|---------------|
-| **Frontend** | React 19, TypeScript, Tailwind 4 | Modern, type-safe, fast iteration |
-| **3D Rendering** | Three.js, @sparkjsdev/spark | Gaussian Splatting + WebGPU |
-| **Desktop Framework** | Tauri 2.10 (Rust) | Native performance, small binary |
+| **GUI Framework** | Bevy 0.15 + egui | Native performance, Rust-native ECS |
+| **3D Rendering** | Bevy (wgpu) | Cross-platform GPU (Metal/Vulkan) |
 | **ML Inference** | CoreML/MLX (macOS), TensorRT/CUDA (Linux) | Platform-native acceleration |
 | **Sensor Fusion** | nalgebra (Rust) | SIMD-optimized linear algebra |
-| **Transport** | Zenoh (Rust), rosbridge (WebSocket) | Low-latency + flexibility |
-| **Build System** | Nix, Cargo, Vite, Bun | Reproducible, fast |
+| **Transport** | Zenoh (Rust) | Low-latency + CDR codec for ROS2 |
+| **Build System** | Nix, Cargo | Reproducible, cross-platform |
 
 ---
 
@@ -301,18 +290,14 @@ nix build     # Build for current platform
 ```bash
 # Prerequisites
 xcode-select --install
-brew install bun rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Clone and setup
+# Clone and build
 git clone https://github.com/crebain/crebain.git
 cd crebain
-bun install
 
-# Build backend (CoreML is used automatically on macOS)
-cd src-tauri && cargo build --release && cd ..
-
-# Run
-bun run tauri dev
+# Build and run (CoreML is used automatically on macOS)
+cargo run --release
 ```
 
 ### NixOS (NVIDIA CUDA)
@@ -327,13 +312,9 @@ nix develop
 #
 # If CUDA isn't detected (or you're on a non-standard setup), force the CUDA shell:
 # nix develop .#cuda
-#
-# The Nix shells set `LD_LIBRARY_PATH` for CUDA/TensorRT and driver libraries.
-# If you hit an ONNX Runtime load/version error, set `ORT_DYLIB_PATH` to a compatible `libonnxruntime.so`.
 
-# Install frontend deps and run
-bun install
-bun run tauri dev
+# Build and run
+cargo run --release
 ```
 
 ### Model Setup
@@ -349,8 +330,8 @@ This repo does **not** ship model weights. Provide your own model files and ensu
 
 For local development you can also drop models into these paths (ignored by git):
 
-- `src-tauri/resources/yolov8s.mlmodelc/` (macOS)
-- `src-tauri/resources/yolov8s.onnx` (Linux)
+- `resources/yolov8s.mlmodelc/` (macOS)
+- `resources/yolov8s.onnx` (Linux)
 
 Or set environment variables:
 ```bash
@@ -362,10 +343,8 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 
 ## Usage
 
-1. **Launch the app**: `bun run tauri dev`
-2. **Load a scene**: Drag and drop a .spz/.ply/.splat file, or use Ctrl+O
-3. **Place cameras**: Press 1/2/3 to enter camera placement mode, click to place
-4. **Enable detection**: Detection runs automatically on camera feeds
+1. **Launch the app**: `cargo run --release`
+2. **Enable detection**: Detection runs automatically on camera feeds
 5. **View performance**: Press P to toggle the performance panel
 6. **Sensor fusion**: Press F to toggle the sensor fusion panel
 7. **Connect ROS**: Press G to open the ROS connection panel
@@ -405,71 +384,63 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 
 ## System Architecture
 
-### Frontend Architecture
+### App Architecture
 
 ```
-src/
-├── components/
-│   ├── CrebainViewer.tsx      # Main 3D viewer (orchestrates everything)
-│   ├── CameraFeed.tsx         # Individual camera with detection overlay
-│   ├── CameraGrid.tsx         # Multi-camera layout
-│   ├── DetectionOverlay.tsx   # Bounding box rendering
-│   └── *Panel.tsx             # Draggable UI panels
-│
-├── hooks/
-│   ├── useGazeboDrones.ts     # Drone state from ROS (CircularBuffer, memoized)
-│   ├── useGazeboSimulation.ts # Continuous guidance controller
-│   ├── useROSSensors.ts       # Sensor fusion integration
-│   └── useDraggable.ts        # Shared panel drag logic
-│
-├── ros/
-│   ├── ROSBridge.ts           # WebSocket client (rosbridge)
-│   ├── ROSCameraStream.ts     # Camera frame decoding
-│   ├── GuidanceController.ts  # 20Hz PD control loop
-│   ├── TransformManager.ts    # TF tree with caching
-│   └── WaypointManager.ts     # MAVROS mission support
-│
-└── lib/
-    ├── CircularBuffer.ts      # O(1) position history
-    └── mathUtils.ts           # Optimized vector math (distanceSquared)
+crates/crebain-app/src/
+├── main.rs                # Bevy app entry point
+├── app_state/             # CrebainConfig, AppState, RenderQuality
+├── camera/                # Tactical camera (WASD+QE controls, zoom)
+├── detection/             # DetectionPlugin, DetectionState, detection loop
+├── scene/                 # Scene save/load via crebain-core
+├── transport/             # TransportPlugin bridging Zenoh → Bevy events
+├── ui/
+│   ├── hud/               # Status bar, performance panel, sensor fusion panel
+│   └── top_menu/          # Menu bar (File/View/Detection/Help)
+├── viewer/
+│   ├── grid.rs            # Tactical grid + origin axes
+│   ├── terrain.rs         # Ground plane
+│   ├── drone.rs            # Drone visualizer with threat colors
+│   └── detection_overlay.rs # 3D detection boxes
+└── circular_buffer.rs     # O(1) position history
 ```
 
-### Backend Architecture
+### Core Architecture
 
 ```
-src-tauri/src/
-├── lib.rs                # Tauri commands (IPC entry points)
-├── main.rs               # Native app entry
+crates/crebain-core/src/
+├── lib.rs                 # Public API, detection entry points
+├── common/                # Detection types, NMS, YOLO helpers, COCO labels
+├── inference/              # ML abstraction layer
+│   ├── mod.rs              # Detector trait + factory
+│   ├── coreml.rs           # macOS CoreML backend
+│   ├── mlx.rs              # macOS MLX backend
+│   ├── cuda.rs             # Linux CUDA backend
+│   ├── tensorrt.rs          # Linux TensorRT backend
+│   └── onnx.rs             # Cross-platform fallback
 │
-├── inference/            # ML abstraction layer
-│   ├── mod.rs            # Detector trait + factory
-│   ├── coreml.rs         # macOS CoreML backend
-│   ├── mlx.rs            # macOS MLX backend
-│   ├── cuda.rs           # Linux CUDA backend
-│   ├── tensorrt.rs       # Linux TensorRT backend
-│   └── onnx.rs           # Cross-platform fallback
+├── transport/              # Communication layer
+│   ├── mod.rs              # Transport trait + types
+│   ├── zenoh.rs            # Zenoh implementation
+│   └── commands.rs         # Broadcast channel bridges
 │
-├── transport/            # Communication layer
-│   ├── mod.rs            # Transport trait + types
-│   └── zenoh.rs          # Zenoh implementation
-│
-└── sensor_fusion.rs      # KF/EKF/UKF/PF/IMM (1400+ lines)
+└── sensor_fusion.rs        # KF/EKF/UKF/PF/IMM (1400+ lines)
 ```
 
 ### Communication Layer
 
 ```mermaid
 flowchart TB
-    subgraph Tauri["TAURI APP"]
-        Frontend["Frontend<br/>(React/Three.js)"]
+    subgraph App["CREBAIN APP (Rust + Bevy)"]
+        Viewer["3D Viewer<br/>(Bevy + wgpu)"]
+        UI["egui Panels<br/>(HUD, Stats)"]
         
         subgraph Transport["Transport Layer"]
             RustZenoh["Rust Transport<br/>(zenoh-rs)"]
-            TSBridge["TypeScript ROSBridge<br/>(rosbridge client)"]
         end
         
-        Frontend -->|"Tauri Events<br/>(binary, low latency)"| RustZenoh
-        Frontend -->|"WebSocket<br/>(JSON, flexible)"| TSBridge
+        Viewer --> RustZenoh
+        UI --> RustZenoh
     end
 
     subgraph ROS["GAZEBO / ROS2 (Headless)"]
@@ -480,7 +451,6 @@ flowchart TB
     end
 
     RustZenoh -->|"Zenoh Protocol<br/>(shared mem / UDP)"| ROS
-    TSBridge -->|"WebSocket<br/>(TCP port 9090)"| ROS
 ```
 
 ---
@@ -599,7 +569,7 @@ export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 gzserver --headless your_world.sdf
 
 # Terminal 2: CREBAIN
-cd crebain && bun run tauri dev
+cd crebain && cargo run --release
 ```
 
 ---
@@ -713,33 +683,34 @@ cd crebain && bun run tauri dev
 
 ```
 crebain/
-├── src/                          # React frontend
-│   ├── components/               # UI components
-│   ├── hooks/                    # React hooks
-│   ├── ros/                      # ROS integration
-│   ├── detection/                # Detection types
-│   ├── physics/                  # Drone physics
-│   ├── simulation/               # Interception system
-│   └── lib/                      # Utilities
+├── crates/
+│   ├── crebain-core/              # Rust backend library
+│   │   └── src/
+│   │       ├── common/            # Detection types, NMS, COCO labels
+│   │       ├── inference/         # ML abstraction layer
+│   │       ├── transport/         # Zenoh transport
+│   │       └── sensor_fusion.rs   # Filter algorithms
+│   └── crebain-app/               # Bevy + egui application
+│       └── src/
+│           ├── detection/         # Detection plugin & loop
+│           ├── camera/            # Tactical camera controls
+│           ├── viewer/            # 3D scene (grid, terrain, drones)
+│           ├── transport/         # Bevy-Zenoh event bridge
+│           ├── ui/                # egui panels & menu
+│           └── scene/             # Scene save/load
 │
-├── src-tauri/                    # Rust backend
-│   ├── src/
-│   │   ├── inference/            # ML abstraction layer
-│   │   ├── transport/            # Zenoh transport
-│   │   └── sensor_fusion.rs      # Filter algorithms
-│   ├── native/
-│   │   ├── coreml-ffi/           # Swift CoreML bridge
-│   │   └── zig-detector/         # Zig detector
-│   └── resources/                # ML models
+├── native/                        # Native modules
+│   ├── coreml-ffi/               # Swift CoreML bridge
+│   └── zig-detector/             # Zig detector
 │
-├── ros/                          # ROS reference files
-│   ├── msg/                      # Message definitions
-│   ├── srv/                      # Service definitions
-│   └── launch/                   # Launch files
+├── ros/                           # ROS reference files
+│   ├── msg/                       # Message definitions
+│   ├── srv/                       # Service definitions
+│   └── launch/                    # Launch files
 │
-├── flake.nix                     # Nix build configuration
-├── package.json                  # Frontend dependencies
-└── README.md                     # This file
+├── flake.nix                      # Nix build configuration
+├── Cargo.toml                     # Workspace definition
+└── README.md                      # This file
 ```
 
 ---
@@ -748,24 +719,17 @@ crebain/
 
 ### In Progress (v0.4.0)
 
-- [ ] Core 3D visualization with Gaussian Splatting
-- [ ] Multi-camera surveillance system
-- [ ] ML detection pipeline (CoreML/CUDA)
-- [ ] Sensor fusion (5 algorithms)
-- [ ] ROS integration (rosbridge)
-- [ ] Performance optimizations (CircularBuffer, memoization)
-- [ ] Zenoh transport layer (stub implementation)
-- [ ] Cross-platform ML abstraction
-- [ ] Nix flake for reproducible builds
-
-### In Progress (v0.5.0)
-
+- [x] Core 3D visualization with Bevy
+- [x] ML detection pipeline (CoreML/ONNX/CUDA)
+- [x] Sensor fusion (5 algorithms)
+- [x] Zenoh transport layer
+- [x] Cross-platform ML abstraction
+- [x] Nix flake for reproducible builds
 - [ ] Full Zenoh integration with camera streaming
+- [ ] Multi-camera surveillance system
 - [ ] TensorRT engine building from ONNX
-- [ ] MLX detector implementation
-- [ ] WebGPU renderer (Three.js r160+)
 
-### Planned (v0.6.0)
+### Planned (v0.5.0)
 
 - [ ] Hardware-in-the-loop (HIL) testing
 - [ ] Real PX4/ArduPilot integration

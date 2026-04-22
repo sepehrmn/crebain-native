@@ -1,28 +1,30 @@
-# Node / Bun
-node_modules/
-bun.lockb
-package-lock.json
-# Keep bun.lock as it is the lockfile for bun
-# npm-debug.log* # Not needed as we are using Bun
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.pnpm-debug.log*
+# Rust
+target/
 
-# Build Output - Web
-dist/
-build/
-*.local
+# Native binaries & ML models (build/download locally)
+resources/*.mlmodel
+resources/*.mlmodelc/
+resources/*.onnx
+resources/*.engine
+resources/*.safetensors
+resources/*.pt
+resources/*.weights
+native/*/zig-out/
+native/*/.build/
+native/*/.zig-cache/
 
-# Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.env
-*.env.*
-!.env.example
+# Zig
+zig-cache/
+zig-out/
+.zig-cache/
+
+# Swift / Xcode (CoreML sidecar)
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
 
 # MacOS
 .DS_Store
@@ -59,33 +61,15 @@ $RECYCLE.BIN/
 .codex/
 .cursor/
 
-# Tauri - Rust
-src-tauri/target/
-target/
-src-tauri/gen/
-
-# Native binaries & ML models (build/download locally)
-src-tauri/binaries/
-src-tauri/resources/*.mlmodel
-src-tauri/resources/*.mlmodelc/
-src-tauri/resources/*.onnx
-src-tauri/resources/*.engine
-src-tauri/resources/*.safetensors
-src-tauri/resources/*.pt
-src-tauri/resources/*.weights
-
-# Zig
-zig-cache/
-zig-out/
-.zig-cache/
-
-# Swift / Xcode (CoreML sidecar)
-.build/
-.swiftpm/
-*.xcodeproj/
-*.xcworkspace/
-xcuserdata/
-DerivedData/
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+*.env.*
+!.env.example
 
 # Logs
 *.log

@@ -30,7 +30,6 @@ impl CoreMlDetector {
                 let model_paths = [
                     "resources/yolov8s.mlmodelc",
                     "../resources/yolov8s.mlmodelc",
-                    "src-tauri/resources/yolov8s.mlmodelc",
                 ];
 
                 let mut initialized = false;

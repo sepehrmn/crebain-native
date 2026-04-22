@@ -3,70 +3,80 @@
 ## Build Commands
 
 ```bash
-# Frontend development
-bun run dev              # Start Vite dev server
-bun run build            # Typecheck + build for production
-bun run typecheck        # TypeScript type checking only
+# Development
+cargo run                        # Run the Bevy app
+cargo run --release              # Release build and run
 
-# Tauri (full app)
-bun run tauri:dev        # Development mode with hot reload
-bun run tauri:build      # Production build
+# Type checking
+cargo check --workspace          # Type check all crates
+cargo check -p crebain-core      # Type check core only
+cargo check -p crebain-app       # Type check app only
+
+# Linting
+cargo clippy --workspace         # Lint all crates
+cargo clippy -- -D warnings      # Lint with warnings as errors
 
 # Testing
-bun run test             # Run tests in watch mode
-bun run test:run         # Run tests once
-bun run test:coverage    # Run tests with coverage
-bun run test:benchmark   # Run detector benchmarks
+cargo test --workspace           # Run all tests
+cargo test -p crebain-core       # Run core tests only
+cargo test -- --nocapture         # Run tests with stdout
 
-# Rust backend
-cd src-tauri && cargo check    # Type check Rust code
-cd src-tauri && cargo build    # Build Rust backend
-cd src-tauri && cargo clippy   # Lint Rust code
+# Build
+cargo build --workspace          # Debug build
+cargo build --release --workspace # Release build
 ```
 
 ## Code Style
-
-### TypeScript/React
-- Use functional components with hooks
-- Prefer `useMemo` and `useCallback` for expensive computations
-- Use `useRef` for mutable values that don't trigger re-renders
-- Avoid `console.log` in production code
-- Use named constants for magic numbers
-- Always clean up effects (intervals, subscriptions, event listeners)
 
 ### Rust
 - Run `cargo clippy` before committing
 - Use `log::info/warn/error` instead of `println!`
 - Validate all external inputs (paths, user data)
 - Use `spawn_blocking` for CPU-intensive operations in async contexts
+- Use functional components with Bevy ECS (systems, resources, events)
+- Prefer `useCallback` patterns: avoid recreating closures each frame
+- Use `ResMut` only when mutation is needed; prefer `Res` for read-only
+- Derive `Resource` for app state, `Component` for entity data
 
 ## Architecture Notes
 
-### Frontend (`src/`)
-- `components/` - React UI components
-- `hooks/` - Custom React hooks
-- `ros/` - ROS bridge and Gazebo integration
-- `detection/` - ML detection types and sensor fusion
-- `physics/` - Drone physics simulation
-- `simulation/` - Interception system
+### Core (`crates/crebain-core/`)
+- `common/` - Detection types, NMS, YOLO helpers, COCO labels, error types, path validation
+- `inference/` - ML abstraction layer (CoreML, ONNX, CUDA, TensorRT, MLX)
+- `sensor_fusion.rs` - Kalman/EKF/UKF/Particle/IMM filters
+- `transport/` - Zenoh low-latency transport + broadcast channels
 
-### Backend (`src-tauri/`)
-- `inference/` - ML abstraction layer (CoreML, ONNX, Zig)
-- `transport/` - Zenoh low-latency transport
-- `sensor_fusion.rs` - Kalman/Particle/IMM filters
+### App (`crates/crebain-app/`)
+- `app_state/` - CrebainConfig, AppState, RenderQuality
+- `camera/` - Tactical camera (WASD+QE controls, zoom)
+- `detection/` - DetectionPlugin, DetectionState, detection loop
+- `scene/` - Scene save/load via crebain-core
+- `transport/` - TransportPlugin bridging Zenoh → Bevy events
+- `ui/hud/` - Status bar, performance panel, sensor fusion panel
+- `ui/top_menu/` - Menu bar (File/View/Detection/Help)
+- `viewer/` - Tactical grid, terrain, drones, detection overlay
+
+### Native (`native/`)
+- `coreml-ffi/` - Swift/CoreML FFI bridge (macOS)
+- `zig-detector/` - Zig-based native detector (Linux)
 
 ## Performance Guidelines
 
-- Use `CircularBuffer` for high-frequency position data
+- Use `CircularBuffer` for high-frequency position data (crebain-app/src/circular_buffer.rs)
 - Prefer squared distance comparisons (avoid `sqrt()`)
-- Use `ImageBitmap` for GPU-accelerated image decoding
-- Memoize derived state to prevent unnecessary recomputes
-- Keep camera feed updates at ~12 FPS (83ms interval)
+- Memoize derived state to prevent unnecessary recomputations
+- Keep camera feed updates at ~12 FPS (83ms interval) when processing
+- Use Bevy change detection (`is_changed()`) to avoid redundant work
 
 ## Testing
 
-Test files use Vitest. Place tests in `__tests__/` directories or use `.test.ts` suffix.
+Tests use Rust's built-in test framework. Place tests in `#[cfg(test)]` modules.
 
-```typescript
-import { describe, it, expect } from 'vitest'
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_example() { ... }
+}
 ```

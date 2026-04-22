@@ -481,12 +481,12 @@ fn find_library_path() -> Option<PathBuf> {
     let lib_name = "crebain_detector.dll";
 
     let search_paths: Vec<Option<PathBuf>> = vec![
-        // Bundled in Tauri app (macOS)
+        // Bundled in app bundle (macOS)
         #[cfg(target_os = "macos")]
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.join(format!("../Resources/{}", lib_name)))),
-        // Bundled in Tauri app (Linux)
+        // Bundled in app bundle (Linux)
         #[cfg(target_os = "linux")]
         std::env::current_exe()
             .ok()
@@ -503,11 +503,7 @@ fn find_library_path() -> Option<PathBuf> {
         // Development path
         std::env::current_dir()
             .ok()
-            .map(|p| p.join(format!("src-tauri/binaries/{}", lib_name))),
-        // Build output
-        std::env::current_dir()
-            .ok()
-            .map(|p| p.join(format!("src-tauri/native/zig-detector/zig-out/lib/{}", lib_name))),
+            .map(|p| p.join(format!("native/zig-detector/zig-out/lib/{}", lib_name))),
         // System-wide locations (Linux)
         #[cfg(target_os = "linux")]
         Some(PathBuf::from(format!("/usr/lib/{}", lib_name))),
@@ -570,7 +566,7 @@ fn find_model_path() -> Option<PathBuf> {
     }
 
     let search_paths: Vec<Option<PathBuf>> = vec![
-        // Bundled in Tauri app
+        // Bundled in app bundle
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.join("../Resources/yolov8s.mlmodelc"))),
@@ -581,12 +577,12 @@ fn find_model_path() -> Option<PathBuf> {
         // Development path
         std::env::current_dir()
             .ok()
-            .map(|p| p.join("src-tauri/resources/yolov8s.mlmodelc")),
+            .map(|p| p.join("resources/yolov8s.mlmodelc")),
         // Linux: Use ONNX model
         #[cfg(target_os = "linux")]
         std::env::current_dir()
             .ok()
-            .map(|p| p.join("src-tauri/resources/yolov8s.onnx")),
+            .map(|p| p.join("resources/yolov8s.onnx")),
         #[cfg(target_os = "linux")]
         Some(PathBuf::from("/usr/share/crebain/models/yolov8s.onnx")),
         #[cfg(target_os = "linux")]

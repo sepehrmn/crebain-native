@@ -495,10 +495,7 @@ fn find_onnx_model_path() -> Option<PathBuf> {
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.join("../share/crebain/models/yolov8s.onnx"))),
-        // Development paths
-        std::env::current_dir()
-            .ok()
-            .map(|p| p.join("src-tauri/resources/yolov8s.onnx")),
+        // Development path
         std::env::current_dir()
             .ok()
             .map(|p| p.join("resources/yolov8s.onnx")),
@@ -531,7 +528,7 @@ pub fn init_global_detector() -> Result<(), String> {
         let model_path = match find_onnx_model_path() {
             Some(p) => p,
             None => {
-                let msg = "ONNX model not found (set CREBAIN_ONNX_MODEL or place yolov8s.onnx in src-tauri/resources)"
+                let msg = "ONNX model not found (set CREBAIN_ONNX_MODEL or place yolov8s.onnx in resources/)"
                     .to_string();
                 log::warn!("[ONNX] {}", msg);
                 return Err(msg);

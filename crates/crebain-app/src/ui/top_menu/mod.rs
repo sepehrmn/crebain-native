@@ -3,7 +3,11 @@ use bevy_egui::egui;
 
 use crate::app_state::CrebainConfig;
 
-pub fn menu_bar_system(mut ctx: bevy_egui::EguiContexts, mut config: ResMut<CrebainConfig>) {
+pub fn menu_bar_system(
+    mut ctx: bevy_egui::EguiContexts,
+    mut config: ResMut<CrebainConfig>,
+    mut exit: EventWriter<AppExit>,
+) {
     let ctx = ctx.ctx_mut();
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -17,7 +21,7 @@ pub fn menu_bar_system(mut ctx: bevy_egui::EguiContexts, mut config: ResMut<Creb
                 }
                 ui.separator();
                 if ui.button("Quit").clicked() {
-                    std::process::exit(0);
+                    exit.send(AppExit::Success);
                 }
             });
 
@@ -34,7 +38,7 @@ pub fn menu_bar_system(mut ctx: bevy_egui::EguiContexts, mut config: ResMut<Creb
                 ];
                 for (label, quality) in quality_labels.iter().zip(qualities.iter()) {
                     if ui.radio(config.render_quality == *quality, *label).clicked() {
-                        config.render_quality = quality.clone();
+                        config.render_quality = *quality;
                     }
                 }
             });

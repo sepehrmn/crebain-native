@@ -2187,6 +2187,8 @@ dependencies = [
  "crebain-core",
  "log",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

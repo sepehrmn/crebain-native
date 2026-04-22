@@ -7,7 +7,7 @@
 //!
 //! ```text
 //! ┌─────────────────┐                     ┌─────────────────┐
-//! │  Gazebo/ROS2    │     Zenoh           │   Tauri App     │
+//! │  Gazebo/ROS2    │     Zenoh           │   CREBAIN App    │
 //! │  (headless)     │◄──────────────────►│                 │
 //! │  RMW=zenoh      │   shared memory    │   zenoh-rs      │
 //! └─────────────────┘                     └─────────────────┘
@@ -42,9 +42,9 @@ use std::pin::Pin;
 /// Camera frame from ROS2
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CameraFrame {
-    /// Image bytes, base64-encoded for Tauri IPC.
+    /// Image bytes, base64-encoded for transport.
     ///
-    /// NOTE: Sending `Vec<u8>` through Tauri events would serialize as a JSON
+    /// NOTE: Sending `Vec<u8>` through transport would serialize as a JSON
     /// array of numbers, which is extremely large and slow for camera frames.
     pub data: String,
     /// Image width

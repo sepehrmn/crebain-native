@@ -28,7 +28,7 @@ impl Default for CrebainConfig {
     }
 }
 
-#[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RenderQuality {
     Low,
     Medium,

@@ -15,6 +15,8 @@ pub fn panels_system(
 ) {
     let ctx = ctx.ctx_mut();
 
+    let fps = 1.0 / time.delta_secs().max(0.001);
+
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
             ui.label(format!("Backend: {}", detection_state.backend_name));
@@ -34,12 +36,11 @@ pub fn panels_system(
                 );
             }
             ui.separator();
-            let fps = 1.0 / time.delta_secs().max(0.001);
             ui.label(format!("FPS: {:.0}", fps));
             ui.separator();
-            ui.checkbox(&mut *show_performance, "Performance");
-            ui.checkbox(&mut *show_sensor, "Sensor Fusion");
-            ui.checkbox(&mut *show_ros, "ROS");
+            ui.checkbox(&mut show_performance, "Performance");
+            ui.checkbox(&mut show_sensor, "Sensor Fusion");
+            ui.checkbox(&mut show_ros, "ROS");
         });
     });
 
@@ -54,10 +55,10 @@ pub fn panels_system(
                 ui.label(format!("IOU: {:.2}", config.iou_threshold));
                 ui.label(format!("Max detections: {}", config.max_detections));
 
-                if !detection_state.detections.is_empty() {
+                if !detection_state.last_objects.is_empty() {
                     ui.separator();
                     ui.heading("Latest Detections");
-                    for det in detection_state.detections.iter().take(20) {
+                    for det in detection_state.last_objects.iter().take(20) {
                         ui.horizontal(|ui| {
                             ui.colored_label(egui::Color32::LIGHT_GREEN, &det.class_label);
                             ui.label(format!("{:.2}", det.confidence));

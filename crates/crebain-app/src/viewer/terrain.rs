@@ -3,6 +3,16 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Terrain;
 
+#[derive(Resource, Clone, Default)]
+pub enum FloorStyle {
+    #[default]
+    Concrete,
+    Grass,
+    Asphalt,
+    Checker,
+    Terrain,
+}
+
 pub fn spawn_terrain(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -12,10 +22,11 @@ pub fn spawn_terrain(
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(size, size))),
         MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.1, 0.15, 0.1),
+            base_color: Color::srgb(0.08, 0.12, 0.08),
+            double_sided: true,
             ..default()
         })),
-        Transform::from_xyz(0.0, -0.01, 0.0),
+        Transform::from_xyz(0.0, -0.05, 0.0),
         Terrain,
     ));
 }

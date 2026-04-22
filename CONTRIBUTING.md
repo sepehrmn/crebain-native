@@ -10,9 +10,8 @@ Please be respectful and constructive in all interactions. We welcome contributo
 
 ### Prerequisites
 
-- **Node.js** 18+ or **Bun** 1.0+
 - **Rust** 1.81+ with `cargo`
-- **macOS**: Xcode Command Line Tools
+- **macOS**: Xcode Command Line Tools (for CoreML/Metal)
 - **Linux**: CUDA Toolkit (optional, for GPU acceleration)
 
 ### Development Setup
@@ -22,11 +21,12 @@ Please be respectful and constructive in all interactions. We welcome contributo
 git clone https://github.com/crebain/crebain.git
 cd crebain
 
-# Install dependencies
-bun install
+# Build and run
+cargo run --release
 
-# Start development server
-bun run tauri:dev
+# Or use Nix
+nix develop
+cargo run --release
 ```
 
 ## Development Workflow
@@ -51,31 +51,19 @@ bun run tauri:dev
 Before submitting a PR, ensure:
 
 ```bash
-# TypeScript
-bun run typecheck        # No type errors
-bun run test:run         # All tests pass
-
-# Rust
-cd src-tauri
-cargo clippy             # No warnings
-cargo test               # All tests pass
+cargo check --workspace          # Type check all crates
+cargo clippy --workspace         # Lint all crates
+cargo test --workspace           # All tests pass
 ```
 
 ### Code Style
-
-#### TypeScript/React
-
-- Use functional components with hooks
-- Prefer `useMemo` and `useCallback` for expensive computations
-- Use the centralized logger (`src/lib/logger.ts`) instead of `console.*`
-- Use named constants for magic numbers
-
-#### Rust
 
 - Run `cargo clippy` before committing
 - Use `log::info/warn/error` instead of `println!`
 - Add documentation comments for public APIs
 - Use `spawn_blocking` for CPU-intensive operations in async contexts
+- Use functional components with Bevy ECS (systems, resources, events)
+- Derive `Resource` for app state, `Component` for entity data
 
 ### Commit Messages
 

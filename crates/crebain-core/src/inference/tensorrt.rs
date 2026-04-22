@@ -484,7 +484,6 @@ fn find_model_path() -> Option<PathBuf> {
 
     let paths = [
         "resources/yolov8s.onnx",
-        "src-tauri/resources/yolov8s.onnx",
         "../resources/yolov8s.onnx",
         "/usr/share/crebain/models/yolov8s.onnx",
         "/opt/crebain/models/yolov8s.onnx",
