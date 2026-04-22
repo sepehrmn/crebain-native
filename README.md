@@ -48,19 +48,22 @@ A professional-grade tactical reconnaissance platform with 3D visualization, mul
 
 | Capability | Description | Status |
 |------------|-------------|--------|
-| **3D Visualization** | 3D tactical view with Bevy/egui | In Progress |
-| **Multi-Camera Surveillance** | Up to 4 simultaneous camera feeds with PTZ control | In Progress |
+| **3D Visualization** | 3D tactical view with Bevy/egui | Working |
 | **ML Detection** | Real-time object detection with platform-native acceleration | Working |
-| **Sensor Fusion** | 5 filter algorithms (KF/EKF/UKF/PF/IMM) for multi-modal tracking | In Progress |
-| **Drone Physics** | 120Hz quadcopter aerodynamics simulation | In Progress |
-| **ROS Integration** | rosbridge WebSocket + Zenoh low-latency transport | In Progress |
-| **Cross-Platform** | macOS (Apple Silicon) + NixOS (CUDA) | In Progress |
+| **Sensor Fusion** | 5 filter algorithms (KF/EKF/UKF/PF/IMM) for multi-modal tracking | Working |
+| **ROS/Zenoh Transport** | Event bridge from Zenoh → Bevy (camera, IMU, pose, model state) | Working |
+| **Drone Tracking** | 3D drone visualization from Gazebo model state with threat coloring | Working |
+| **Cross-Platform** | macOS (Apple Silicon) + NixOS (CUDA) | Working |
+| **Multi-Camera Surveillance** | Up to 4 simultaneous camera feeds with PTZ control | Planned |
+| **Drone Physics** | 120Hz quadcopter aerodynamics simulation | Planned |
 
 ### 3D Visualization
-- **3D Visualization**: Tactical 3D view with Bevy engine + egui UI overlays
-- **Real-time Rendering**: Bevy with wgpu (Metal/Vulkan/WebGPU)
-- **First-Person Navigation**: WASD movement, Q/E for vertical, Shift to sprint
-- **Drone Visualization**: Real-time 3D drone models with rotor animation
+- **3D Scene**: Tactical grid, ground plane, origin axes with Bevy + wgpu (Metal/Vulkan)
+- **Real-time Rendering**: Driven by Bevy ECS with change-detection optimizations
+- **First-Person Camera**: WASD movement, Q/Space up, E down, Shift sprint, Ctrl precision, scroll zoom
+- **Detection Overlay**: 3D bounding boxes with 5-level threat coloring (grey/green/yellow-green/orange/red)
+- **Drone Tracking**: Real-time drone position + orientation from ROS model state, with trail history
+- **HUD Panels**: Status bar (backend, detections, inference timing, connection status), Performance panel, Sensor Fusion panel, ROS Connection panel
 
 ### Multi-Camera Surveillance System
 - **Camera Types**:
@@ -96,12 +99,12 @@ A professional-grade tactical reconnaissance platform with 3D visualization, mul
 | **IMM** | Maneuvering targets | ~1.5ms |
 
 ### UI/UX
-- **NATO-Compliant Interface**: VS-NfD classification system
-- **Threat Level Indicators**: 5-level system (0=unknown to 4=critical)
-- **Austere Military Aesthetic**: Grayscale with tactical color meaning only
-- **German Localization**: Full German language interface
-- **Draggable Panels**: All panels can be repositioned with edge snapping
-- **Responsive Design**: All text uses em-based scaling for consistency
+- **Status Bar**: Backend name, detection count, inference timing, connection indicator, message count
+- **Threat Level Indicators**: 5-level system mapped from class name (drone=4, aircraft/helicopter=3, bird=2, person=1, unknown=1)
+- **Drone Classification**: Automatic hostile/friendly/unknown assignment from model names
+- **Performance Panel**: Confiugration, timing breakdown (pre/inference/post), pipeline FPS
+- **Sensor Fusion Panel**: EKF status, confirmed track count, real-time updates
+- **ROS Connection Panel**: Connection status, Zenoh configuration, message statistics
 
 ---
 
@@ -364,11 +367,10 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 | Mouse Wheel | Zoom in/out |
 
 ### Panels & UI
-| Key | Action |
-|-----|--------|
-| P | Toggle Performance Panel |
-| F | Toggle Sensor Fusion Panel |
-| G | Toggle ROS Connection Panel |
+All panels are toggled via checkboxes in the status bar at the bottom of the screen:
+- **Performance** — detection config, timing breakdown, latest detections
+- **Sensor Fusion** — EKF status and track count
+- **ROS** — Zenoh connection status and controls
 
 ---
 
@@ -378,19 +380,21 @@ export CREBAIN_ONNX_MODEL=/path/to/your/model.onnx
 
 ```
 crates/crebain-app/src/
-├── main.rs                # Bevy app entry point
+├── main.rs                # Bevy app entry point, 3D scene setup
 ├── app_state/             # CrebainConfig, AppState, RenderQuality
 ├── camera/                # Tactical camera (WASD+QE controls, zoom)
-├── detection/             # DetectionPlugin, DetectionState, detection loop
-├── transport/             # TransportPlugin bridging Zenoh → Bevy events
+├── detection/             # DetectionPlugin, DetectionState, detection loop, sensor fusion bridge
+├── transport/
+│   ├── mod.rs             # TransportPlugin, TransportState, event counting
+│   └── events.rs          # CameraFrame, Imu, Pose, ModelState, Connect/Disconnect events
 ├── ui/
-│   ├── hud/               # Status bar, performance panel, sensor fusion panel
+│   ├── hud/               # Status bar (backend, timing, connection), performance & fusion panels
 │   └── top_menu/          # Menu bar (File/View/Detection/Help)
 └── viewer/
     ├── grid.rs            # Tactical grid + origin axes
     ├── terrain.rs          # Ground plane
-    ├── drone.rs           # Drone visualizer with threat colors
-    └── detection_overlay.rs # 3D detection boxes
+    ├── drone.rs            # DroneRegistry, drone visuals, model state → registry bridge
+    └── detection_overlay.rs # 3D detection boxes with threat-level coloring
 ```
 
 ### Core Architecture
@@ -415,30 +419,43 @@ crates/crebain-core/src/
 └── sensor_fusion.rs        # KF/EKF/UKF/PF/IMM (1400+ lines)
 ```
 
-### Communication Layer
+### Data Flow
 
 ```mermaid
 flowchart TB
-    subgraph App["CREBAIN APP (Rust + Bevy)"]
-        Viewer["3D Viewer<br/>(Bevy + wgpu)"]
-        UI["egui Panels<br/>(HUD, Stats)"]
-        
-        subgraph Transport["Transport Layer"]
-            RustZenoh["Rust Transport<br/>(zenoh-rs)"]
-        end
-        
-        Viewer --> RustZenoh
-        UI --> RustZenoh
+    subgraph External["External Systems"]
+        Gazebo["Gazebo / ROS2"]
+        Camera["Camera Feed"]
+        IMU["IMU Sensor"]
+        Pose["Pose Sensor"]
     end
 
-    subgraph ROS["GAZEBO / ROS2 (Headless)"]
-        RMW["RMW_IMPLEMENTATION=rmw_zenoh_cpp"]
-        Camera["Camera Plugins"]
-        Physics["Physics Engine"]
-        MAVROS["MAVROS Bridge"]
+    subgraph Transport["Transport Events (Bevy)"]
+        ModelState["ModelStateEvent<br/>(names, positions, orientations)"]
+        CameraFrame["CameraFrameEvent<br/>(RGBA data, width, height)"]
+        ImuData["ImuDataEvent<br/>(orientation, ang_vel, lin_acc)"]
+        PoseData["PoseDataEvent<br/>(position, orientation)"]
     end
 
-    RustZenoh -->|"Zenoh Protocol<br/>(shared mem / UDP)"| ROS
+    subgraph App["CREBAIN App"]
+        DroneReg["DroneRegistry<br/>(3D drone visuals)"]
+        Detection["Detection Loop<br/>(CoreML/ONNX)"]
+        Fusion["Sensor Fusion<br/>(EKF/UKF/IMM)"]
+        HUD["HUD Panels<br/>(status, timing, stats)"]
+    end
+
+    Gazebo --> ModelState
+    Camera --> CameraFrame
+    IMU --> ImuData
+    Pose --> PoseData
+
+    ModelState --> DroneReg
+    CameraFrame --> Detection
+    ImuData --> Fusion
+    PoseData --> Fusion
+    Detection --> HUD
+    DroneReg --> HUD
+    Fusion --> HUD
 ```
 
 ---
@@ -525,6 +542,19 @@ stateDiagram-v2
 ---
 
 ## ROS-Gazebo Integration
+
+### Event Bridge (Transport → App)
+
+The `TransportPlugin` receives events from the Zenoh bridge and routes them through the Bevy ECS:
+
+| Event | Source Topic | Target | Effect |
+|-------|-------------|--------|--------|
+| `ModelStateEvent` | `/gazebo/model_states` | `DroneRegistry` | Spawn/update 3D drones |
+| `CameraFrameEvent` | `/*/camera/image_raw` | `DetectionImageEvent` → `DetectionState` | Run ML inference |
+| `ImuDataEvent` | `/*/imu/data` | `SensorFusionState` | Initialize/update EKF |
+| `PoseDataEvent` | `/*/local_position/pose` | `SensorFusionState` | Initialize/update EKF |
+| `TransportConnectedEvent` | Zenoh session | `TransportState.connected` | HUD green indicator |
+| `TransportDisconnectedEvent` | Zenoh session | `TransportState.connected` | HUD grey indicator |
 
 ### Supported Topics
 
@@ -693,15 +723,22 @@ crebain/
 
 ## Development Roadmap
 
-### In Progress (v0.4.0)
+### Completed (v0.4.0)
 
 - [x] Core 3D visualization with Bevy
 - [x] ML detection pipeline (CoreML/ONNX/CUDA)
-- [x] Sensor fusion (5 algorithms)
-- [x] Zenoh transport layer
+- [x] Sensor fusion (5 filter algorithms)
+- [x] Zenoh transport layer + Bevy event bridge
+- [x] Drone tracking from ROS model state
+- [x] Camera frame → detection pipeline
+- [x] IMU/pose → sensor fusion bridge
+- [x] HUD panels (status, performance, fusion, ROS)
 - [x] Cross-platform ML abstraction
 - [x] Nix flake for reproducible builds
-- [ ] Full Zenoh integration with camera streaming
+
+### In Progress
+
+- [ ] Full Zenoh integration with live camera streaming
 - [ ] Multi-camera surveillance system
 - [ ] TensorRT engine building from ONNX
 

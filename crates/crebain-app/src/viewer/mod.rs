@@ -19,6 +19,7 @@ impl Plugin for ViewerPlugin {
             .add_systems(Update, (
                 drone::update_drone_positions,
                 drone::update_or_create_drone_visuals,
+                drone::update_drone_registry_from_model_state,
             ));
     }
 }

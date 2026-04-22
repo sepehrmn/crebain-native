@@ -2,12 +2,16 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 use crate::app_state::CrebainConfig;
-use crate::detection::DetectionState;
+use crate::detection::{DetectionState, SensorFusionState};
+use crate::transport::TransportState;
 
+#[allow(clippy::too_many_arguments)]
 pub fn panels_system(
     mut ctx: bevy_egui::EguiContexts,
     detection_state: Res<DetectionState>,
     config: Res<CrebainConfig>,
+    transport_state: Res<TransportState>,
+    fusion_state: Res<SensorFusionState>,
     time: Res<Time>,
     mut show_performance: Local<bool>,
     mut show_sensor: Local<bool>,
@@ -19,6 +23,13 @@ pub fn panels_system(
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
+            let conn_color = if transport_state.connected {
+                egui::Color32::GREEN
+            } else {
+                egui::Color32::DARK_GRAY
+            };
+            ui.colored_label(conn_color, if transport_state.connected { "● Connected" } else { "○ Disconnected" });
+            ui.separator();
             ui.label(format!("Backend: {}", detection_state.backend_name));
             ui.separator();
             ui.label(format!("Detections: {}", detection_state.detection_count));
@@ -40,6 +51,9 @@ pub fn panels_system(
             }
             if let Some(ref err) = detection_state.error {
                 ui.colored_label(egui::Color32::RED, format!("Error: {}", err));
+            }
+            if transport_state.messages_received > 0 {
+                ui.label(format!("RX: {}", transport_state.messages_received));
             }
             ui.separator();
             ui.label(format!("FPS: {:.0}", fps));
@@ -90,8 +104,14 @@ pub fn panels_system(
             .show(ctx, |ui| {
                 ui.heading("Sensor Fusion");
                 ui.separator();
-                ui.label("Fusion engine status panel");
-                ui.label("(Initialize fusion to see stats)");
+                if fusion_state.initialized {
+                    ui.colored_label(egui::Color32::GREEN, "● Active");
+                    ui.label(format!("Algorithm: {}", fusion_state.algorithm));
+                    ui.label(format!("Confirmed tracks: {}", fusion_state.track_count));
+                } else {
+                    ui.colored_label(egui::Color32::GRAY, "○ Standby");
+                    ui.label("Waiting for sensor data...");
+                }
             });
     }
 
@@ -100,7 +120,24 @@ pub fn panels_system(
             .show(ctx, |ui| {
                 ui.heading("ROS2 / Zenoh Bridge");
                 ui.separator();
-                ui.label("Connect to Zenoh transport for real-time data");
+
+                if transport_state.connected {
+                    ui.colored_label(egui::Color32::GREEN, "● Connected");
+                    ui.label(format!("Messages received: {}", transport_state.messages_received));
+                    ui.label(format!("Messages sent: {}", transport_state.messages_sent));
+                } else {
+                    ui.colored_label(egui::Color32::GRAY, "○ Not connected");
+                    ui.label("Configure Zenoh to connect");
+                }
+
+                ui.separator();
+                ui.label("Environment:");
+                ui.horizontal(|ui| {
+                    ui.label("CREBAIN_ZENOH=");
+                    let zenoh_env = std::env::var("CREBAIN_ZENOH").unwrap_or_else(|_| "not set (default: enabled)".to_string());
+                    ui.label(zenoh_env);
+                });
+
                 if ui.button("Connect").clicked() {
                     log::info!("Zenoh connect requested");
                 }

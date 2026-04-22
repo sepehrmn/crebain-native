@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use crate::transport::ModelStateEvent;
+
 pub const DRONE_TRAIL_LENGTH: usize = 50;
 
 #[derive(Clone, Debug, Resource, Default)]
@@ -177,5 +179,48 @@ pub fn update_or_create_drone_visuals(
 
     for entity in to_despawn {
         commands.entity(entity).despawn();
+    }
+}
+
+pub fn update_drone_registry_from_model_state(
+    mut events: EventReader<ModelStateEvent>,
+    mut registry: ResMut<DroneRegistry>,
+) {
+    for event in events.read() {
+        for (i, name) in event.names.iter().enumerate() {
+            let position = event.positions.get(i).map(|&p| Vec3::new(p[0] as f32, p[1] as f32, p[2] as f32)).unwrap_or(Vec3::ZERO);
+            let orientation = event.orientations.get(i)
+                .map(|&o| Quat::from_array([o[0] as f32, o[1] as f32, o[2] as f32, o[3] as f32]))
+                .unwrap_or(Quat::IDENTITY);
+            let velocity = event.velocities.get(i)
+                .map(|&v| Vec3::new(v[0] as f32, v[1] as f32, v[2] as f32))
+                .unwrap_or(Vec3::ZERO);
+
+            let drone_id = name.clone();
+            let is_hostile = name.to_ascii_lowercase().contains("hostile")
+                || name.to_ascii_lowercase().contains("enemy")
+                || name.to_ascii_lowercase().contains("adversary");
+            let is_friendly = name.to_ascii_lowercase().contains("friendly")
+                || name.to_ascii_lowercase().contains("ally");
+            let drone_type = if is_hostile {
+                DroneType::Hostile
+            } else if is_friendly {
+                DroneType::Friendly
+            } else {
+                DroneType::Unknown
+            };
+
+            registry.drones.insert(drone_id, DroneState {
+                id: name.clone(),
+                name: name.clone(),
+                drone_type,
+                position,
+                orientation,
+                velocity,
+                armed: true,
+                battery: 1.0,
+                flight_mode: DroneFlightMode::PositionHold,
+            });
+        }
     }
 }

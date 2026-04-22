@@ -9,6 +9,7 @@ pub struct CameraFrameEvent {
     pub encoding: String,
     pub timestamp: f64,
     pub frame_id: String,
+    pub rgba_data: Vec<u8>,
 }
 
 #[derive(Event, Clone, Debug)]

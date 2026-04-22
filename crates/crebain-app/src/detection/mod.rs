@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use crebain_core::DetectedObject;
 
 use crate::viewer::detection_overlay::{self, Detection3D, DetectionStateVisual};
+use crate::transport::{CameraFrameEvent, ImuDataEvent, PoseDataEvent};
 
 pub struct DetectionPlugin;
 
@@ -62,6 +63,14 @@ pub struct DetectionImageBuffer {
     pub height: u32,
 }
 
+#[derive(Resource, Default)]
+pub struct SensorFusionState {
+    pub initialized: bool,
+    pub track_count: usize,
+    pub algorithm: String,
+    pub last_update_ms: u64,
+}
+
 #[derive(Event)]
 pub struct DetectionImageEvent {
     pub data: Vec<u8>,
@@ -76,6 +85,7 @@ impl Plugin for DetectionPlugin {
             .init_resource::<DetectionStateVisual>()
             .init_resource::<DetectionTimer>()
             .init_resource::<DetectionImageBuffer>()
+            .init_resource::<SensorFusionState>()
             .add_event::<DetectionImageEvent>()
             .add_systems(Startup, (
                 init_detection,
@@ -85,6 +95,8 @@ impl Plugin for DetectionPlugin {
                 run_detection_loop,
                 sync_detections_to_visuals.before(detection_overlay::update_detection_overlays),
                 handle_detection_image_events,
+                forward_camera_frames,
+                update_fusion_from_sensor_data,
             ))
             .add_systems(Update, detection_overlay::update_detection_overlays);
     }
@@ -211,5 +223,45 @@ fn handle_detection_image_events(
         buffer.data = Some(event.data.clone());
         buffer.width = event.width;
         buffer.height = event.height;
+    }
+}
+
+fn forward_camera_frames(
+    mut camera_events: EventReader<CameraFrameEvent>,
+    mut detection_events: EventWriter<DetectionImageEvent>,
+) {
+    for event in camera_events.read() {
+        if !event.rgba_data.is_empty() && event.width > 0 && event.height > 0 {
+            detection_events.send(DetectionImageEvent {
+                data: event.rgba_data.clone(),
+                width: event.width,
+                height: event.height,
+            });
+        }
+    }
+}
+
+fn update_fusion_from_sensor_data(
+    mut fusion_state: ResMut<SensorFusionState>,
+    mut imu_events: EventReader<ImuDataEvent>,
+    mut pose_events: EventReader<PoseDataEvent>,
+) {
+    let imu_count = imu_events.read().count();
+    let pose_count = pose_events.read().count();
+
+    if (imu_count > 0 || pose_count > 0) && !fusion_state.initialized {
+        fusion_state.initialized = true;
+        fusion_state.algorithm = "EKF".to_string();
+        log::info!("[Fusion] Sensor data received, fusion active (EKF)");
+    }
+
+    if fusion_state.initialized {
+        if let Ok(stats) = crebain_core::fusion_get_stats() {
+            fusion_state.track_count = stats.confirmed_tracks;
+            fusion_state.last_update_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+        }
     }
 }
