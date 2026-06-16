@@ -81,9 +81,12 @@ impl Detector for CudaDetector {
             })
             .map_err(|e| InferenceError::InferenceError(e));
 
-        let elapsed_ms = start.elapsed().as_millis() as u64;
-        self.inference_count.fetch_add(1, Ordering::Relaxed);
-        self.total_inference_ms.fetch_add(elapsed_ms, Ordering::Relaxed);
+        // Only count successful inferences so avg latency / totals aren't skewed.
+        if result.is_ok() {
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+            self.inference_count.fetch_add(1, Ordering::Relaxed);
+            self.total_inference_ms.fetch_add(elapsed_ms, Ordering::Relaxed);
+        }
 
         result
     }

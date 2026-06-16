@@ -1208,8 +1208,20 @@ impl MultiSensorFusion {
                     track.covariance[(2, 2)],
                 );
 
+                // Gate on the innovation covariance S = H P Hᵀ + R (H is the
+                // identity on the position block, so H P Hᵀ = pos_cov). Folding in
+                // the measurement noise R makes this a proper Mahalanobis gate;
+                // without it the gate is too tight once P shrinks below R for
+                // confident tracks, spawning spurious duplicate tracks.
+                let r = Matrix3::from_diagonal(&Vector3::new(
+                    meas.covariance[0],
+                    meas.covariance[1],
+                    meas.covariance[2],
+                ));
+                let innovation_cov = pos_cov + r;
+
                 // Mahalanobis distance if covariance is invertible, otherwise Euclidean
-                let distance = if let Some(inv) = pos_cov.try_inverse() {
+                let distance = if let Some(inv) = innovation_cov.try_inverse() {
                     (diff.transpose() * inv * diff)[0].sqrt()
                 } else {
                     // Covariance singular - fall back to Euclidean distance
@@ -1444,10 +1456,56 @@ impl MultiSensorFusion {
 
     /// Update configuration
     pub fn set_config(&mut self, config: FusionConfig) {
+        let algorithm_changed = self.config.algorithm != config.algorithm;
         self.config = config.clone();
         self.kf = KalmanFilter::new(config.process_noise, config.measurement_noise);
         self.ekf = ExtendedKalmanFilter::new(config.process_noise, config.measurement_noise);
         self.ukf = UnscentedKalmanFilter::new(config.process_noise, config.measurement_noise);
+
+        // On an algorithm change, per-track Particle/IMM filter state from the old
+        // algorithm is invalid. Drop it AND re-seed filters for the NEW algorithm
+        // from each existing track's current state — otherwise pre-existing tracks
+        // would silently freeze (predict/update find no filter and no-op) while
+        // still being counted as alive and Confirmed.
+        if algorithm_changed {
+            self.particle_filters.clear();
+            self.imm_filters.clear();
+            self.reinitialize_track_filters();
+        }
+    }
+
+    /// Seed per-track Particle/IMM filters from existing tracks' current state.
+    /// No-op for the closed-form (KF/EKF/UKF) algorithms, which hold no per-track
+    /// filter state.
+    fn reinitialize_track_filters(&mut self) {
+        let seeds: Vec<(String, Vector6<f64>, Matrix6<f64>)> = self
+            .tracks
+            .iter()
+            .map(|(id, t)| (id.clone(), t.state, t.covariance))
+            .collect();
+
+        match self.config.algorithm {
+            FilterAlgorithm::Particle => {
+                for (id, state, cov) in seeds {
+                    let mut pf = ParticleFilter::new(
+                        self.config.particle_count,
+                        self.config.process_noise,
+                        self.config.measurement_noise,
+                    );
+                    pf.initialize(&state, &cov);
+                    self.particle_filters.insert(id, pf);
+                }
+            }
+            FilterAlgorithm::IMM => {
+                for (id, state, cov) in seeds {
+                    let mut imm =
+                        IMMFilter::new(self.config.process_noise, self.config.measurement_noise);
+                    imm.initialize(&state, &cov);
+                    self.imm_filters.insert(id, imm);
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -1542,5 +1600,50 @@ mod tests {
 
         // Should create one fused track
         assert!(!tracks.is_empty());
+    }
+
+    #[test]
+    fn algorithm_switch_reseeds_filters_for_existing_tracks() {
+        // Regression: switching to Particle/IMM at runtime must re-seed per-track
+        // filters from existing tracks, otherwise those tracks freeze (predict /
+        // update silently no-op) while still being counted as alive.
+        let config = FusionConfig {
+            algorithm: FilterAlgorithm::Kalman,
+            ..FusionConfig::default()
+        };
+        let mut fusion = MultiSensorFusion::new(config);
+        let measurement = SensorMeasurement {
+            sensor_id: "cam1".to_string(),
+            modality: SensorModality::Visual,
+            timestamp_ms: 1000,
+            position: [10.0, 0.0, 5.0],
+            velocity: None,
+            covariance: [1.0, 1.0, 1.0],
+            confidence: 0.9,
+            class_label: "drone".to_string(),
+            metadata: HashMap::new(),
+        };
+        fusion.process_measurements(vec![measurement], 1000);
+        assert_eq!(fusion.tracks.len(), 1);
+        assert!(fusion.particle_filters.is_empty());
+
+        fusion.set_config(FusionConfig {
+            algorithm: FilterAlgorithm::Particle,
+            ..FusionConfig::default()
+        });
+        assert_eq!(fusion.particle_filters.len(), fusion.tracks.len());
+        for id in fusion.tracks.keys() {
+            assert!(
+                fusion.particle_filters.contains_key(id),
+                "existing track {id} has no particle filter after switch"
+            );
+        }
+
+        fusion.set_config(FusionConfig {
+            algorithm: FilterAlgorithm::IMM,
+            ..FusionConfig::default()
+        });
+        assert!(fusion.particle_filters.is_empty());
+        assert_eq!(fusion.imm_filters.len(), fusion.tracks.len());
     }
 }

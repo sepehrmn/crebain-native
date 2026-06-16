@@ -200,7 +200,11 @@ fn read_cdr_string(data: &[u8], offset: &mut usize, is_little_endian: bool) -> R
         .to_string();
     *offset = end_offset;
 
-    align_cdr(offset, 4);
+    // No trailing alignment: per OMG CDR/XCDR1 (as emitted by FastCDR/rmw_zenoh) a
+    // string is a 4-aligned u32 length + raw bytes with NO padding after it; the
+    // next member applies its own leading alignment. Padding here skips bytes
+    // before a following uint8 (sensor_msgs/Image's `is_bigendian`), desyncing
+    // decode of every real ROS2 frame whose string length isn't a multiple of 4.
 
     Ok(string)
 }
@@ -1312,6 +1316,26 @@ impl Transport for ZenohBridge {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(feature = "zenoh-transport")]
+    fn read_cdr_string_does_not_pad_after_content() {
+        // Regression: a CDR string must NOT be followed by alignment padding, so a
+        // following uint8 (e.g. sensor_msgs/Image's `is_bigendian`) is read from
+        // the right offset. "rgb8\0" is 5 bytes (not a multiple of 4), the case
+        // that previously desynced decode.
+        let mut data = vec![0x01, 0x00, 0x00, 0x00]; // CDR little-endian header
+        data.extend_from_slice(&5u32.to_le_bytes()); // string length (incl. null)
+        data.extend_from_slice(b"rgb8\0"); // content
+        data.push(0xAB); // a following uint8 (stand-in for is_bigendian)
+
+        let mut offset = CDR_HEADER_SIZE;
+        let s = read_cdr_string(&data, &mut offset, true).unwrap();
+
+        assert_eq!(s, "rgb8");
+        // offset must sit on the trailing uint8, not a padded 4-byte boundary.
+        assert_eq!(data[offset], 0xAB, "offset was padded past the string content");
+    }
 
     #[test]
     #[cfg(feature = "zenoh-transport")]
